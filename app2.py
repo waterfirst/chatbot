@@ -1,23 +1,41 @@
 import streamlit as st
-import google.generativeai as genai
+import anthropic
 import os
 import tempfile
 from PyPDF2 import PdfReader
+import telebot
+import datetime
+import json  # 추가된 import
+import requests  # requests 모듈도 필요합니다
 
 # Streamlit 페이지 설정
 st.set_page_config(page_title="DS라온 대리운전 QA 챗봇", page_icon="🚗", layout="wide")
 
-# Gemini API 키 설정
-if "GOOGLE_API_KEY" in st.secrets:
-    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-else:
-    # 로컬 테스트용
-    GOOGLE_API_KEY = "AIzaSyCVWp5atr9rwq1u1TUWg6fmoJ6pq6r8Wcw"
+# API 키 설정
+try:
+    if "ANTHROPIC_API_KEY" in st.secrets:
+        ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
+        KAKAO_TOKEN = st.secrets.get(
+            "KAKAO_TOKEN", "your-kakao-token-here"
+        )  # 기본값 설정
+    else:
+        # 로컬 테스트용
+        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "your-api-key-here")
+        KAKAO_TOKEN = os.getenv("KAKAO_TOKEN", "your-kakao-token-here")
+except Exception as e:
+    st.error(f"API 키 설정 중 오류 발생: {str(e)}")
+    ANTHROPIC_API_KEY = "your-api-key-here"
+    KAKAO_TOKEN = "your-kakao-token-here"
 
-genai.configure(api_key=GOOGLE_API_KEY)
 
-# 모델 설정
-model = genai.GenerativeModel("gemini-pro")
+# Claude 클라이언트 초기화
+client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
+
+
+# 텔레그램 봇 설정
+TELEGRAM_TOKEN = "7659346262:AAHdpHX1kN1vUxXO2H0sdFkXkOs3SQpsA3Q"
+TELEGRAM_CHAT_ID = "5767743818"  # 텔레그램 봇으로부터 받은 chat_id
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 
 def get_text_from_pdf(pdf_path):
@@ -31,6 +49,95 @@ def get_text_from_pdf(pdf_path):
     except Exception as e:
         st.error(f"PDF 파일 읽기 오류: {str(e)}")
         return ""
+
+
+def send_telegram_reservation(customer_name, reservation_time, departure, destination):
+    """텔레그램으로 예약 정보 전송"""
+    try:
+        message = f"""🚗 새로운 대리운전 예약
+        
+고객명: {customer_name}
+예약시간: {reservation_time}
+출발지: {departure}
+도착지: {destination}
+
+예약시간: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+        return True
+    except Exception as e:
+        st.error(f"텔레그램 메시지 전송 실패: {str(e)}")
+        return False
+
+
+def send_kakao_message(customer_name, reservation_time, departure, destination):
+    """카카오톡으로 예약 정보 전송"""
+    if KAKAO_TOKEN == "your-kakao-token-here":
+        st.warning(
+            "카카오톡 토큰이 설정되지 않아 카카오톡 메시지를 전송할 수 없습니다."
+        )
+        return False
+
+    try:
+        url = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
+        headers = {"Authorization": f"Bearer {KAKAO_TOKEN}"}
+
+        # 현재 시간 기준으로 예약 상태 메시지 생성
+        current_time = datetime.datetime.now()
+        reserved_time = datetime.datetime.strptime(reservation_time, "%Y-%m-%d %H:%M")
+
+        if current_time > reserved_time:
+            status_msg = "배차완료"
+        else:
+            status_msg = "접수완료(배차 대기 중)"
+
+        template = {
+            "object_type": "text",
+            "text": f"""🚗 대리운전 예약 상태
+
+예약번호: {abs(hash(f"{customer_name}{reservation_time}")) % 1000000:06d}
+고객명: {customer_name}
+예약시간: {reservation_time}
+출발지: {departure}
+도착지: {destination}
+
+현재상태: {status_msg}
+마지막 업데이트: {current_time.strftime('%Y-%m-%d %H:%M:%S')}""",
+            "link": {
+                "web_url": "https://example.com/booking-status",
+                "mobile_web_url": "https://example.com/booking-status",
+            },
+            "button_title": "상태 새로고침",
+        }
+
+        data = {"template_object": json.dumps(template)}
+
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code != 200:
+            raise Exception(f"카카오톡 메시지 전송 실패: {response.text}")
+        return True
+    except Exception as e:
+        st.error(f"카카오톡 메시지 전송 실패: {str(e)}")
+        return False
+
+
+def send_reservation(customer_name, reservation_time, departure, destination):
+    """텔레그램과 카카오톡으로 예약 정보 전송"""
+    telegram_success = send_telegram_reservation(
+        customer_name, reservation_time, departure, destination
+    )
+    kakao_success = send_kakao_message(
+        customer_name, reservation_time, departure, destination
+    )
+
+    if telegram_success and kakao_success:
+        return True, "모든 메시지가 성공적으로 전송되었습니다!"
+    elif telegram_success:
+        return True, "텔레그램 메시지만 전송되었습니다."
+    elif kakao_success:
+        return True, "카카오톡 메시지만 전송되었습니다."
+    else:
+        return False, "메시지 전송에 실패했습니다."
 
 
 def load_qa_documents():
@@ -52,7 +159,6 @@ def load_qa_documents():
             if content:
                 qa_text += content + "\n\n"
 
-        # 파일이 모두 로드되면 성공 메시지만 표시
         if qa_text:
             st.success("대답할 준비가 완료되었습니다! 궁금하신 점을 물어보세요. 😊")
 
@@ -62,10 +168,10 @@ def load_qa_documents():
         return ""
 
 
-def get_gemini_response(conversation, prompt):
-    """Gemini API를 사용하여 응답 생성"""
+def get_claude_response(messages, prompt):
+    """Claude API를 사용하여 응답 생성"""
     try:
-        enhanced_prompt = f"""당신은 DS라온 대리운전의 전문 상담원입니다. 다음 지침을 따라 응답해주세요:
+        context = """당신은 DS라온 대리운전의 전문 상담원입니다. 다음 지침을 따라 응답해주세요:
 
         1. 답변 스타일:
         - '네, 안녕하세요. DS라온 대리운전입니다.'로 시작
@@ -89,17 +195,42 @@ def get_gemini_response(conversation, prompt):
         - 실시간 위치 확인 가능함을 안내
         - 안전한 운행과 보험 보장 설명
         - 고객 만족 보장 강조
-
-        고객의 질문: {prompt}
+        
+        
+        5. 만약 고객이 예약을 원하면 다음 정보를 반드시 물어보세요:
+        - 고객명
+        - 예약시간
+        - 출발지 주소
+        - 도착지 주소
+        
+        이 정보들을 모두 받으면 '예약 정보를 전달하겠습니다.'라고 답변해주세요.
+       
 
         참고 문서 내용:
         {st.session_state.get('qa_text', '문서 내용이 없습니다.')}
+
+        위의 내용을 기반으로 다음 질문에 답변해주세요: {prompt}
         """
 
-        response = conversation.send_message(enhanced_prompt)
-        return response.text
+        # 메시지 목록 생성
+        message_list = [{"role": "user", "content": context}]
+
+        # 이전 대화 기록 추가
+        for msg in messages:
+            if msg["role"] != "system":  # system 역할 메시지 제외
+                message_list.append({"role": msg["role"], "content": msg["content"]})
+
+        # Claude API 호출
+        response = client.messages.create(
+            model="claude-3-haiku-20240307",
+            messages=message_list,
+            max_tokens=1000,
+            temperature=0.7,
+        )
+
+        return response.content[0].text
     except Exception as e:
-        if "429" in str(e):
+        if "rate_limit_exceeded" in str(e):
             return "죄송합니다. 잠시 후 다시 시도해주시기 바랍니다."
         st.error(f"에러가 발생했습니다: {str(e)}")
         return None
@@ -107,6 +238,29 @@ def get_gemini_response(conversation, prompt):
 
 def main():
     st.title("🚗 DS라온 대리운전 QA 챗봇")
+    # 예약 정보 입력 폼
+    with st.sidebar:
+        st.header("예약 정보 입력")
+        with st.form("reservation_form"):
+            customer_name = st.text_input("고객명")
+            reservation_time = st.text_input("예약시간 (예: 2024-01-19 21:00)")
+            departure = st.text_input("출발지 주소")
+            destination = st.text_input("도착지 주소")
+
+            submit_button = st.form_submit_button("예약 전송")
+
+            if submit_button:
+                if customer_name and reservation_time and departure and destination:
+                    success, message = send_reservation(
+                        customer_name, reservation_time, departure, destination
+                    )
+                    if success:
+                        st.success(message)
+                    else:
+                        st.error(message)
+                else:
+                    st.warning("모든 필드를 입력해주세요.")
+
     st.markdown(
         """
         <style>
@@ -134,11 +288,6 @@ def main():
     if "qa_text" not in st.session_state:
         st.session_state["qa_text"] = load_qa_documents()
 
-        # 디버깅을 위한 상태 확인
-    if "qa_text" not in st.session_state:
-        st.info("QA 문서를 처음 로드합니다...")
-        st.session_state["qa_text"] = load_qa_documents()
-
     # QA 문서가 비어있는지 확인
     if not st.session_state.get("qa_text", "").strip():
         st.error("QA 문서가 비어있습니다. PDF 파일을 확인해주세요.")
@@ -147,7 +296,6 @@ def main():
     # 메인 채팅 인터페이스
     if "messages" not in st.session_state:
         st.session_state.messages = []
-        st.session_state.conversation = model.start_chat(history=[])
 
     # 채팅 기록 표시
     for message in st.session_state.messages:
@@ -163,9 +311,9 @@ def main():
         # 답변 생성
         with st.chat_message("assistant"):
             with st.spinner("답변을 생성하고 있습니다..."):
-                response = get_gemini_response(st.session_state.conversation, prompt)
+                response = get_claude_response(st.session_state.messages, prompt)
                 if response:
-                    if "죄송합니다" in response:  # 429 에러 응답인 경우
+                    if "죄송합니다" in response:  # rate limit 에러 응답인 경우
                         st.warning(response)
                     else:
                         st.markdown(response)
