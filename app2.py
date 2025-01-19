@@ -325,8 +325,19 @@ def main():
             .stTextInput input {
                 border: 1px solid #e0e0e0;
             }
+            /* AI 챗봇 답변 스타일 */
             .st-emotion-cache-1gulkj5 {
-                background-color: white;
+                background-color: #FFF9C4 !important;  /* 연한 노란색 배경 */
+            }
+            
+            /* AI 챗봇 텍스트 색상 */
+            .st-emotion-cache-1gulkj5 p {
+                color: black !important;  /* 검정색 텍스트 */
+            }
+            
+            /* AI 아이콘 배경 */
+            .st-emotion-cache-1v0mbdj {
+                background-color: #FFF9C4 !important;
             }
         </style>
     """,
