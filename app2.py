@@ -70,48 +70,69 @@ def send_telegram_reservation(customer_name, reservation_time, departure, destin
         return False
 
 
+def parse_reservation_time(time_str):
+    """예약 시간 문자열을 파싱하는 함수"""
+    try:
+        # 다양한 형식 시도
+        formats = [
+            '%Y-%m-%d %H:%M',  # 2025-01-20 15:30
+            '%Y-%m-%d',        # 2025-01-20
+            '%m-%d %H:%M',     # 01-20 15:30
+            '%Y.%m.%d %H:%M',  # 2025.01.20 15:30
+            '%Y.%m.%d',        # 2025.01.20
+        ]
+        
+        for fmt in formats:
+            try:
+                parsed_time = datetime.datetime.strptime(time_str, fmt)
+                # 년도가 없는 형식인 경우 현재 년도 사용
+                if fmt in ['%m-%d %H:%M']:
+                    current_year = datetime.datetime.now().year
+                    parsed_time = parsed_time.replace(year=current_year)
+                # 시간이 없는 경우 현재 시간 사용
+                if fmt in ['%Y-%m-%d', '%Y.%m.%d']:
+                    current_time = datetime.datetime.now()
+                    parsed_time = parsed_time.replace(hour=current_time.hour, 
+                                                    minute=current_time.minute)
+                return parsed_time
+            except ValueError:
+                continue
+                
+        # 어떤 형식도 맞지 않으면 현재 시간 반환
+        return datetime.datetime.now()
+    except Exception:
+        return datetime.datetime.now()
+
 def send_kakao_message(customer_name, reservation_time, departure, destination):
     """카카오톡으로 예약 정보 전송"""
-    if KAKAO_TOKEN == "your-kakao-token-here":
-        st.warning(
-            "카카오톡 토큰이 설정되지 않아 카카오톡 메시지를 전송할 수 없습니다."
-        )
-        return False
-
     try:
+        # 예약 시간 파싱
+        parsed_time = parse_reservation_time(reservation_time)
+        formatted_time = parsed_time.strftime('%Y-%m-%d %H:%M')
+
         url = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
         headers = {"Authorization": f"Bearer {KAKAO_TOKEN}"}
 
-        # 현재 시간 기준으로 예약 상태 메시지 생성
-        current_time = datetime.datetime.now()
-        reserved_time = datetime.datetime.strptime(reservation_time, "%Y-%m-%d %H:%M")
-
-        if current_time > reserved_time:
-            status_msg = "배차완료"
-        else:
-            status_msg = "접수완료(배차 대기 중)"
-
         template = {
             "object_type": "text",
-            "text": f"""🚗 대리운전 예약 상태
+            "text": f"""🚗 대리운전 예약 알림
 
-예약번호: {abs(hash(f"{customer_name}{reservation_time}")) % 1000000:06d}
+예약번호: {abs(hash(f"{customer_name}{formatted_time}")) % 1000000:06d}
 고객명: {customer_name}
-예약시간: {reservation_time}
+예약시간: {formatted_time}
 출발지: {departure}
 도착지: {destination}
 
-현재상태: {status_msg}
-마지막 업데이트: {current_time.strftime('%Y-%m-%d %H:%M:%S')}""",
+예약시간: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}""",
             "link": {
                 "web_url": "https://example.com/booking-status",
-                "mobile_web_url": "https://example.com/booking-status",
+                "mobile_web_url": "https://example.com/booking-status"
             },
-            "button_title": "상태 새로고침",
+            "button_title": "예약 확인하기"
         }
 
         data = {"template_object": json.dumps(template)}
-
+        
         response = requests.post(url, headers=headers, data=data)
         if response.status_code != 200:
             raise Exception(f"카카오톡 메시지 전송 실패: {response.text}")
