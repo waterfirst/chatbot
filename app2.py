@@ -369,7 +369,17 @@ def show_reservation_form():
         if "form_submitted" not in st.session_state:
             st.session_state.form_submitted = False
 
-        customer_name = st.text_input("고객명")
+        # 폼 데이터를 세션 상태로 관리
+        if "form_data" not in st.session_state:
+            st.session_state.form_data = {
+                "customer_name": "",
+                "departure": "",
+                "destination": "",
+            }
+
+        customer_name = st.text_input(
+            "고객명", value=st.session_state.form_data["customer_name"]
+        )
 
         # 날짜 선택기
         selected_date = st.date_input(
@@ -386,29 +396,43 @@ def show_reservation_form():
         # 날짜와 시간 결합
         reservation_time = datetime.datetime.combine(selected_date, selected_time)
 
-        departure = st.text_input("출발지 주소")
-        destination = st.text_input("도착지 주소")
+        departure = st.text_input(
+            "출발지 주소", value=st.session_state.form_data["departure"]
+        )
+        destination = st.text_input(
+            "도착지 주소", value=st.session_state.form_data["destination"]
+        )
 
-        # 모든 필드가 입력되었는지 확인
-        all_fields_filled = customer_name and departure and destination
+        # 입력된 데이터 저장
+        st.session_state.form_data["customer_name"] = customer_name
+        st.session_state.form_data["departure"] = departure
+        st.session_state.form_data["destination"] = destination
 
-        if all_fields_filled and not st.session_state.form_submitted:
+        if not st.session_state.form_submitted:
             if st.button("예약 요청"):
-                formatted_time = reservation_time.strftime("%Y-%m-%d %H:%M")
-                success, message = send_reservation(
-                    customer_name, formatted_time, departure, destination
-                )
-                if success:
-                    st.success(message)
-                    st.session_state.form_submitted = True
-                    # 예약 성공 후 폼 초기화를 위한 rerun
-                    st.rerun()
+                if not (customer_name and departure and destination):
+                    st.warning("모든 필드를 입력해주세요.")
                 else:
-                    st.error(message)
+                    formatted_time = reservation_time.strftime("%Y-%m-%d %H:%M")
+                    success, message = send_reservation(
+                        customer_name, formatted_time, departure, destination
+                    )
+                    if success:
+                        st.success(message)
+                        st.session_state.form_submitted = True
+                        st.rerun()
+                    else:
+                        st.error(message)
 
         # 예약이 완료되었을 때 새로운 예약 버튼 표시
         if st.session_state.form_submitted:
             if st.button("새로운 예약하기"):
+                # 폼 데이터 초기화
+                st.session_state.form_data = {
+                    "customer_name": "",
+                    "departure": "",
+                    "destination": "",
+                }
                 st.session_state.form_submitted = False
                 st.rerun()
 
