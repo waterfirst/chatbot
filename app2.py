@@ -272,77 +272,42 @@ def main():
     )
 
     
-    # 테마 설정을 위한 CSS 주입
     st.markdown("""
         <style>
-            :root {
-                --primary-color: #ff4b4b;
-            }
-            .stApp {
-                background-color: white;
-            }
-            .st-emotion-cache-1v0mbdj {
-                background-color: white;
-            }
+        /* 챗봇 답변 컨테이너 스타일 */
+        .st-emotion-cache-1gulkj5 {
+            background-color: rgb(96, 96, 96) !important;
+            border-radius: 10px !important;
+        }
+        
+        /* 챗봇 답변 텍스트 색상 */
+        .st-emotion-cache-1gulkj5 p {
+            color: white !important;
+        }
+        
+        /* 챗봇 아이콘 배경 */
+        .st-emotion-cache-1v0mbdj {
+            background-color: rgb(96, 96, 96) !important;
+        }
+    
+        /* 사용자 메시지 컨테이너 */
+        .st-emotion-cache-91bucy {
+            background-color: rgb(96, 96, 96) !important;
+            border-radius: 10px !important;
+        }
+    
+        /* 사용자 메시지 텍스트 */
+        .st-emotion-cache-91bucy p {
+            color: white !important;
+        }
+    
+        /* 챗봇 메시지 전체 스타일 통일 */
+        .stChatMessage {
+            background-color: rgb(96, 96, 96) !important;
+            color: white !important;
+        }
         </style>
-    """, unsafe_allow_html=True)
-
-    # 스타일 적용
-    st.markdown(
-        """
-        <style>
-            .stApp {
-                background-color: white;
-            }
-            .stButton button {
-                background-color: #ff4b4b;
-                color: white;
-                border-radius: 5px;
-                border: none;
-                padding: 0.5rem 1rem;
-            }
-            .stButton button:hover {
-                background-color: #ff3333;
-            }
-            div[data-testid="stExpander"] {
-                background-color: white;
-                border: 1px solid #e0e0e0;
-                border-radius: 5px;
-                padding: 10px;
-            }
-            .st-emotion-cache-16txtl3 {
-                padding: 1rem;
-                border-radius: 0.5rem;
-                margin-bottom: 1rem;
-                background-color: white;
-            }
-            div.st-emotion-cache-16txtl3 p {
-                color: #31333F;
-            }
-            .st-emotion-cache-1v0mbdj {
-                width: 100%;
-            }
-            .stTextInput input {
-                border: 1px solid #e0e0e0;
-            }
-            /* AI 챗봇 답변 스타일 */
-            .st-emotion-cache-1gulkj5 {
-                background-color: #FFF9C4 !important;  /* 연한 노란색 배경 */
-            }
-            
-            /* AI 챗봇 텍스트 색상 */
-            .st-emotion-cache-1gulkj5 p {
-                color: black !important;  /* 검정색 텍스트 */
-            }
-            
-            /* AI 아이콘 배경 */
-            .st-emotion-cache-1v0mbdj {
-                background-color: #FFF9C4 !important;
-            }
-        </style>
-    """,
-        unsafe_allow_html=True,
-    )
+        """, unsafe_allow_html=True)
 
     # 예약하기 버튼
     if st.button("🚗 예약하기", help="대리운전 예약하기"):
