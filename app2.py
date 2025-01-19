@@ -183,9 +183,8 @@ def load_qa_documents():
         if qa_text:
             st.markdown(
                 '<div class="success-msg" style="padding: 1rem; border-radius: 0.5rem; background-color: #d4edda; color: black;">당신은 DS라온 대리운전의 친절하고 전문적인 상담원입니다. 궁금하신 점을 물어보세요. 😊</div>',
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
-
 
         return qa_text
     except Exception as e:
@@ -271,8 +270,8 @@ def main():
         menu_items=None,
     )
 
-    
-    st.markdown("""
+    st.markdown(
+        """
         <style>
         /* 챗봇 답변 컨테이너 스타일 */
         .st-emotion-cache-1gulkj5 {
@@ -307,10 +306,20 @@ def main():
             color: white !important;
         }
         </style>
-        """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # 예약하기 버튼
-    if st.button("🚗 예약하기", help="대리운전 예약하기"):
+    # 예약하기 버튼 (세션 상태에 따라 표시)
+    if "form_submitted" not in st.session_state:
+        st.session_state.form_submitted = False
+
+    if not st.session_state.get("showing_form", False):
+        if st.button("🚗 예약하기", help="대리운전 예약하기"):
+            st.session_state.showing_form = True
+            st.rerun()
+
+    if st.session_state.get("showing_form", False):
         show_reservation_form()
 
     # 최초 실행 시 QA 문서 로드
@@ -355,43 +364,53 @@ def show_reservation_form():
     """예약 폼을 표시하는 함수"""
     with st.expander("대리운전 예약", expanded=True):
         st.header("예약 정보 입력")
-        with st.form("reservation_form", clear_on_submit=False):
-            customer_name = st.text_input("고객명")
 
-            # 날짜 선택기
-            selected_date = st.date_input(
-                "예약 날짜",
-                min_value=datetime.datetime.now().date(),
-                format="YYYY-MM-DD",
-            )
+        # 세션 상태에 폼 데이터 초기화
+        if "form_submitted" not in st.session_state:
+            st.session_state.form_submitted = False
 
-            # 시간 선택기
-            selected_time = st.time_input(
-                "예약 시간", datetime.time(hour=21, minute=0)  # 기본값 21:00
-            )
+        customer_name = st.text_input("고객명")
 
-            # 날짜와 시간 결합
-            reservation_time = datetime.datetime.combine(selected_date, selected_time)
+        # 날짜 선택기
+        selected_date = st.date_input(
+            "예약 날짜",
+            min_value=datetime.datetime.now().date(),
+            format="YYYY-MM-DD",
+        )
 
-            departure = st.text_input("출발지 주소")
-            destination = st.text_input("도착지 주소")
+        # 시간 선택기
+        selected_time = st.time_input(
+            "예약 시간", datetime.time(hour=21, minute=0)  # 기본값 21:00
+        )
 
-            submit_col1, submit_col2 = st.columns([1, 4])
-            with submit_col1:
-                submit_button = st.form_submit_button("예약하기")
-            with submit_col2:
-                if submit_button:
-                    if customer_name and departure and destination:
-                        formatted_time = reservation_time.strftime("%Y-%m-%d %H:%M")
-                        success, message = send_reservation(
-                            customer_name, formatted_time, departure, destination
-                        )
-                        if success:
-                            st.success(message)
-                        else:
-                            st.error(message)
-                    else:
-                        st.warning("모든 필드를 입력해주세요.")
+        # 날짜와 시간 결합
+        reservation_time = datetime.datetime.combine(selected_date, selected_time)
+
+        departure = st.text_input("출발지 주소")
+        destination = st.text_input("도착지 주소")
+
+        # 모든 필드가 입력되었는지 확인
+        all_fields_filled = customer_name and departure and destination
+
+        if all_fields_filled and not st.session_state.form_submitted:
+            if st.button("예약 요청"):
+                formatted_time = reservation_time.strftime("%Y-%m-%d %H:%M")
+                success, message = send_reservation(
+                    customer_name, formatted_time, departure, destination
+                )
+                if success:
+                    st.success(message)
+                    st.session_state.form_submitted = True
+                    # 예약 성공 후 폼 초기화를 위한 rerun
+                    st.rerun()
+                else:
+                    st.error(message)
+
+        # 예약이 완료되었을 때 새로운 예약 버튼 표시
+        if st.session_state.form_submitted:
+            if st.button("새로운 예약하기"):
+                st.session_state.form_submitted = False
+                st.rerun()
 
 
 if __name__ == "__main__":
