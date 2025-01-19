@@ -256,50 +256,10 @@ def get_claude_response(messages, prompt):
         st.error(f"에러가 발생했습니다: {str(e)}")
         return None
 
-
 def main():
     st.title("🚗 DS라온 대리운전 QA 챗봇")
     
-    # 예약 정보 입력 폼
-    with st.sidebar:
-        st.header("예약 정보 입력")
-        with st.form("reservation_form"):
-            customer_name = st.text_input("고객명")
-            
-            # 날짜 선택기
-            selected_date = st.date_input(
-                "예약 날짜",
-                min_value=datetime.datetime.now().date(),
-                format="YYYY-MM-DD"
-            )
-            
-            # 시간 선택기
-            selected_time = st.time_input(
-                "예약 시간",
-                datetime.time(hour=21, minute=0)  # 기본값 21:00
-            )
-            
-            # 날짜와 시간 결합
-            reservation_time = datetime.datetime.combine(selected_date, selected_time)
-            
-            departure = st.text_input("출발지 주소")
-            destination = st.text_input("도착지 주소")
-
-            submit_button = st.form_submit_button("예약 전송")
-
-            if submit_button:
-                if customer_name and departure and destination:
-                    formatted_time = reservation_time.strftime('%Y-%m-%d %H:%M')
-                    success, message = send_reservation(
-                        customer_name, formatted_time, departure, destination
-                    )
-                    if success:
-                        st.success(message)
-                    else:
-                        st.error(message)
-                else:
-                    st.warning("모든 필드를 입력해주세요.")
-
+    # 스타일 적용
     st.markdown(
         """
         <style>
@@ -318,10 +278,25 @@ def main():
             .assistant-message {
                 background-color: #e8f0fe;
             }
+            .reservation-button {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 1000;
+            }
+            div[data-testid="stExpander"] {
+                background-color: #f8f9fa;
+                border-radius: 0.5rem;
+                margin-bottom: 1rem;
+            }
         </style>
     """,
         unsafe_allow_html=True,
     )
+
+    # 예약하기 버튼
+    if st.button("🚗 예약하기", help="대리운전 예약하기"):
+        show_reservation_form()
 
     # 최초 실행 시 QA 문서 로드
     if "qa_text" not in st.session_state:
@@ -360,6 +335,49 @@ def main():
                         {"role": "assistant", "content": response}
                     )
 
+def show_reservation_form():
+    """예약 폼을 표시하는 함수"""
+    with st.expander("대리운전 예약", expanded=True):
+        st.header("예약 정보 입력")
+        with st.form("reservation_form", clear_on_submit=False):
+            customer_name = st.text_input("고객명")
+            
+            # 날짜 선택기
+            selected_date = st.date_input(
+                "예약 날짜",
+                min_value=datetime.datetime.now().date(),
+                format="YYYY-MM-DD",
+            )
+            
+            # 시간 선택기
+            selected_time = st.time_input(
+                "예약 시간", datetime.time(hour=21, minute=0)  # 기본값 21:00
+            )
+            
+            # 날짜와 시간 결합
+            reservation_time = datetime.datetime.combine(selected_date, selected_time)
+            
+            departure = st.text_input("출발지 주소")
+            destination = st.text_input("도착지 주소")
+            
+            submit_col1, submit_col2 = st.columns([1, 4])
+            with submit_col1:
+                submit_button = st.form_submit_button("예약하기")
+            with submit_col2:
+                if submit_button:
+                    if customer_name and departure and destination:
+                        formatted_time = reservation_time.strftime("%Y-%m-%d %H:%M")
+                        success, message = send_reservation(
+                            customer_name, formatted_time, departure, destination
+                        )
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                    else:
+                        st.warning("모든 필드를 입력해주세요.")
+
 
 if __name__ == "__main__":
+    main()
     main()
