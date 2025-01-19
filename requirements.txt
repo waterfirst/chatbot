@@ -1,6 +1,6 @@
 streamlit
 anthropic
 PyPDF2
-python-telebot
+pyTelegramBotAPI
 requests
 python-dotenv
