@@ -1,0 +1,32 @@
+[theme]
+# 라이트 모드를 기본값으로 설정
+base = "light"
+
+# 테마 커스터마이징
+primaryColor = "#ff4b4b"  # 주 색상
+backgroundColor = "#ffffff"  # 배경색
+secondaryBackgroundColor = "#f0f2f6"  # 보조 배경색
+textColor = "#31333F"  # 텍스트 색상
+font = "sans serif"  # 폰트
+
+[browser]
+# 항상 라이트 모드로 시작
+gatherUsageStats = false
+
+[server]
+# 기본 테마 설정 고정
+enableXsrfProtection = false
+enableCORS = false
+
+[runner]
+# 실행 관련 설정
+fastReruns = true
+
+[client]
+# 클라이언트 설정
+showErrorDetails = false
+caching = true
+displayEnabled = true
+
+[deprecation]
+showfileUploaderEncoding = false
