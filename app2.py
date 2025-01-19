@@ -259,21 +259,39 @@ def get_claude_response(messages, prompt):
 
 def main():
     st.title("🚗 DS라온 대리운전 QA 챗봇")
+    
     # 예약 정보 입력 폼
     with st.sidebar:
         st.header("예약 정보 입력")
         with st.form("reservation_form"):
             customer_name = st.text_input("고객명")
-            reservation_time = st.text_input("예약시간 (예: 2024-01-19 21:00)")
+            
+            # 날짜 선택기
+            selected_date = st.date_input(
+                "예약 날짜",
+                min_value=datetime.datetime.now().date(),
+                format="YYYY-MM-DD"
+            )
+            
+            # 시간 선택기
+            selected_time = st.time_input(
+                "예약 시간",
+                datetime.time(hour=21, minute=0)  # 기본값 21:00
+            )
+            
+            # 날짜와 시간 결합
+            reservation_time = datetime.datetime.combine(selected_date, selected_time)
+            
             departure = st.text_input("출발지 주소")
             destination = st.text_input("도착지 주소")
 
             submit_button = st.form_submit_button("예약 전송")
 
             if submit_button:
-                if customer_name and reservation_time and departure and destination:
+                if customer_name and departure and destination:
+                    formatted_time = reservation_time.strftime('%Y-%m-%d %H:%M')
                     success, message = send_reservation(
-                        customer_name, reservation_time, departure, destination
+                        customer_name, formatted_time, departure, destination
                     )
                     if success:
                         st.success(message)
