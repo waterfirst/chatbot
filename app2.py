@@ -269,6 +269,22 @@ def main():
         menu_items=None,
     )
 
+    
+    # 테마 설정을 위한 CSS 주입
+    st.markdown("""
+        <style>
+            :root {
+                --primary-color: #ff4b4b;
+            }
+            .stApp {
+                background-color: white;
+            }
+            .st-emotion-cache-1v0mbdj {
+                background-color: white;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     # 스타일 적용
     st.markdown(
         """
