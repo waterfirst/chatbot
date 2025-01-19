@@ -181,9 +181,11 @@ def load_qa_documents():
                 qa_text += content + "\n\n"
 
         if qa_text:
-            st.success(
-                "당신은 DS라온 대리운전의 친절하고 전문적인 상담원입니다. 궁금하신 점을 물어보세요. 😊"
+            st.markdown(
+                '<div class="success-msg" style="padding: 1rem; border-radius: 0.5rem; background-color: #d4edda; color: black;">당신은 DS라온 대리운전의 친절하고 전문적인 상담원입니다. 궁금하신 점을 물어보세요. 😊</div>',
+                unsafe_allow_html=True
             )
+
 
         return qa_text
     except Exception as e:
