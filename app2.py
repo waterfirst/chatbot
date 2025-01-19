@@ -8,8 +8,6 @@ import datetime
 import json  # 추가된 import
 import requests  # requests 모듈도 필요합니다
 
-# Streamlit 페이지 설정
-st.set_page_config(page_title="DS라온 대리운전 QA 챗봇", page_icon="🚗", layout="wide")
 
 # API 키 설정
 try:
@@ -75,40 +73,42 @@ def parse_reservation_time(time_str):
     try:
         # 다양한 형식 시도
         formats = [
-            '%Y-%m-%d %H:%M',  # 2025-01-20 15:30
-            '%Y-%m-%d',        # 2025-01-20
-            '%m-%d %H:%M',     # 01-20 15:30
-            '%Y.%m.%d %H:%M',  # 2025.01.20 15:30
-            '%Y.%m.%d',        # 2025.01.20
+            "%Y-%m-%d %H:%M",  # 2025-01-20 15:30
+            "%Y-%m-%d",  # 2025-01-20
+            "%m-%d %H:%M",  # 01-20 15:30
+            "%Y.%m.%d %H:%M",  # 2025.01.20 15:30
+            "%Y.%m.%d",  # 2025.01.20
         ]
-        
+
         for fmt in formats:
             try:
                 parsed_time = datetime.datetime.strptime(time_str, fmt)
                 # 년도가 없는 형식인 경우 현재 년도 사용
-                if fmt in ['%m-%d %H:%M']:
+                if fmt in ["%m-%d %H:%M"]:
                     current_year = datetime.datetime.now().year
                     parsed_time = parsed_time.replace(year=current_year)
                 # 시간이 없는 경우 현재 시간 사용
-                if fmt in ['%Y-%m-%d', '%Y.%m.%d']:
+                if fmt in ["%Y-%m-%d", "%Y.%m.%d"]:
                     current_time = datetime.datetime.now()
-                    parsed_time = parsed_time.replace(hour=current_time.hour, 
-                                                    minute=current_time.minute)
+                    parsed_time = parsed_time.replace(
+                        hour=current_time.hour, minute=current_time.minute
+                    )
                 return parsed_time
             except ValueError:
                 continue
-                
+
         # 어떤 형식도 맞지 않으면 현재 시간 반환
         return datetime.datetime.now()
     except Exception:
         return datetime.datetime.now()
+
 
 def send_kakao_message(customer_name, reservation_time, departure, destination):
     """카카오톡으로 예약 정보 전송"""
     try:
         # 예약 시간 파싱
         parsed_time = parse_reservation_time(reservation_time)
-        formatted_time = parsed_time.strftime('%Y-%m-%d %H:%M')
+        formatted_time = parsed_time.strftime("%Y-%m-%d %H:%M")
 
         url = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
         headers = {"Authorization": f"Bearer {KAKAO_TOKEN}"}
@@ -126,13 +126,13 @@ def send_kakao_message(customer_name, reservation_time, departure, destination):
 예약시간: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}""",
             "link": {
                 "web_url": "https://example.com/booking-status",
-                "mobile_web_url": "https://example.com/booking-status"
+                "mobile_web_url": "https://example.com/booking-status",
             },
-            "button_title": "예약 확인하기"
+            "button_title": "예약 확인하기",
         }
 
         data = {"template_object": json.dumps(template)}
-        
+
         response = requests.post(url, headers=headers, data=data)
         if response.status_code != 200:
             raise Exception(f"카카오톡 메시지 전송 실패: {response.text}")
@@ -181,7 +181,9 @@ def load_qa_documents():
                 qa_text += content + "\n\n"
 
         if qa_text:
-            st.success("대답할 준비가 완료되었습니다! 궁금하신 점을 물어보세요. 😊")
+            st.success(
+                "당신은 DS라온 대리운전의 친절하고 전문적인 상담원입니다. 궁금하신 점을 물어보세요. 😊"
+            )
 
         return qa_text
     except Exception as e:
@@ -256,38 +258,57 @@ def get_claude_response(messages, prompt):
         st.error(f"에러가 발생했습니다: {str(e)}")
         return None
 
+
 def main():
-    st.title("🚗 DS라온 대리운전 QA 챗봇")
-    
+    # 페이지 설정
+    st.set_page_config(
+        page_title="DS라온 대리운전 QA 챗봇",
+        page_icon="🚗",
+        layout="wide",
+        initial_sidebar_state="expanded",
+        menu_items=None,
+    )
+
     # 스타일 적용
     st.markdown(
         """
         <style>
             .stApp {
-                max-width: 1200px;
-                margin: 0 auto;
+                background-color: white;
             }
-            .chat-message {
+            .stButton button {
+                background-color: #ff4b4b;
+                color: white;
+                border-radius: 5px;
+                border: none;
+                padding: 0.5rem 1rem;
+            }
+            .stButton button:hover {
+                background-color: #ff3333;
+            }
+            div[data-testid="stExpander"] {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                padding: 10px;
+            }
+            .st-emotion-cache-16txtl3 {
                 padding: 1rem;
                 border-radius: 0.5rem;
                 margin-bottom: 1rem;
+                background-color: white;
             }
-            .user-message {
-                background-color: #f0f2f6;
+            div.st-emotion-cache-16txtl3 p {
+                color: #31333F;
             }
-            .assistant-message {
-                background-color: #e8f0fe;
+            .st-emotion-cache-1v0mbdj {
+                width: 100%;
             }
-            .reservation-button {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                z-index: 1000;
+            .stTextInput input {
+                border: 1px solid #e0e0e0;
             }
-            div[data-testid="stExpander"] {
-                background-color: #f8f9fa;
-                border-radius: 0.5rem;
-                margin-bottom: 1rem;
+            .st-emotion-cache-1gulkj5 {
+                background-color: white;
             }
         </style>
     """,
@@ -335,31 +356,32 @@ def main():
                         {"role": "assistant", "content": response}
                     )
 
+
 def show_reservation_form():
     """예약 폼을 표시하는 함수"""
     with st.expander("대리운전 예약", expanded=True):
         st.header("예약 정보 입력")
         with st.form("reservation_form", clear_on_submit=False):
             customer_name = st.text_input("고객명")
-            
+
             # 날짜 선택기
             selected_date = st.date_input(
                 "예약 날짜",
                 min_value=datetime.datetime.now().date(),
                 format="YYYY-MM-DD",
             )
-            
+
             # 시간 선택기
             selected_time = st.time_input(
                 "예약 시간", datetime.time(hour=21, minute=0)  # 기본값 21:00
             )
-            
+
             # 날짜와 시간 결합
             reservation_time = datetime.datetime.combine(selected_date, selected_time)
-            
+
             departure = st.text_input("출발지 주소")
             destination = st.text_input("도착지 주소")
-            
+
             submit_col1, submit_col2 = st.columns([1, 4])
             with submit_col1:
                 submit_button = st.form_submit_button("예약하기")
@@ -379,5 +401,4 @@ def show_reservation_form():
 
 
 if __name__ == "__main__":
-    main()
     main()
